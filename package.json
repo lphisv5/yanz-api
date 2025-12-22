@@ -1,5 +1,5 @@
 {
-  "name": "yanz-api",
+  "name": "linkvertise-bypass",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -12,7 +12,8 @@
     "generic-pool": "^3.9.0",
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "puppeteer": "^22.0.0"
   },
   "engines": {
     "node": ">=18"
