@@ -14,6 +14,8 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 app.use(cors());
 
+app.set('trust proxy', true); // หรือ app.set('trust proxy', 1);
+
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
@@ -21,7 +23,6 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Browser Pool (Render/VPS ไหว 3-4 ตัว)
 const browserFactory = {
   create: async () => {
     return await puppeteer.launch({
