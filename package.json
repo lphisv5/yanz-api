@@ -1,5 +1,5 @@
 {
-  "name": "linkvertise-hack-bypass",
+  "name": "linkvertise-bypass",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -7,7 +7,10 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "axios": "^1.7.2",
+    "puppeteer": "^22.0.0",  // สำคัญ: ใช้ puppeteer เต็ม (ไม่ใช่ core)
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "generic-pool": "^3.9.0",
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "cors": "^2.8.5"
