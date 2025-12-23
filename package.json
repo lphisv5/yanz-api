@@ -6,7 +6,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "fastify": "^4.26.0",
