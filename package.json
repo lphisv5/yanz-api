@@ -1,11 +1,9 @@
 {
-  "name": "vercel-api-key-system",
+  "name": "yanz-api-key-system",
   "version": "1.0.0",
-  "description": "Serverless API Key System (Gen / Auth / Check-in) for Vercel",
-  "main": "index.js",
+  "description": "Vercel Serverless API Key System (Gen key / Auth / Checkin)",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
     "start": "vercel dev"
   },
   "dependencies": {
