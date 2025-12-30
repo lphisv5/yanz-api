@@ -1,32 +1,29 @@
-import { MongoClient } from "mongodb";
+import { connectDB } from '../lib/mongodb';
+import mongoose from 'mongoose';
 
-const uri = process.env.MONGO_URI;
+const keySchema = new mongoose.Schema({
+  key: { type: String, unique: true },
+  owner: String,
+  used: { type: Boolean, default: false },
+});
+
+const Key = mongoose.models.Key || mongoose.model('Key', keySchema);
 
 export default async function handler(req, res) {
-  const key = req.query.key;
-  if (!key) return res.status(400).json({ error: "Key is required" });
+  try {
+    await connectDB();
 
-  const client = new MongoClient(uri);
-  await client.connect();
-  const db = client.db("yanz");
-  const keys = db.collection("keys");
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const found = await keys.findOne({ key });
-  if (!found) {
-    client.close();
-    return res.status(403).json({ error: "Key not found / never generated" });
+    const { key } = req.query;
+    if (!key) return res.status(400).json({ error: 'Key required' });
+
+    const found = await Key.findOne({ key });
+    if (!found) return res.status(404).json({ error: 'Key not found or not generated' });
+
+    res.status(200).json({ key: found.key, owner: found.owner, used: found.used });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  if (!found.active) {
-    client.close();
-    return res.status(403).json({ error: "Key revoked" });
-  }
-  if (found.expireAt < new Date()) {
-    client.close();
-    return res.status(403).json({ error: "Key expired" });
-  }
-
-  await keys.updateOne({ key }, { $set: { verified: true } });
-
-  client.close();
-  res.json({ success: true, message: "Key verified" });
 }
