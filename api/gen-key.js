@@ -1,36 +1,36 @@
-import { MongoClient } from "mongodb";
-import crypto from "crypto";
+import { connectDB } from '../lib/mongodb';
+import mongoose from 'mongoose';
 
-const uri = process.env.MONGO_URI;
+const keySchema = new mongoose.Schema({
+  key: { type: String, unique: true },
+  owner: String,
+  used: { type: Boolean, default: false },
+});
+
+const Key = mongoose.models.Key || mongoose.model('Key', keySchema);
+
+function generateRandomKey(length = 16) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+  return result;
+}
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
+  try {
+    await connectDB();
 
-  const { owner } = req.body;
-  if (!owner) return res.status(400).json({ error: "Owner is required" });
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const client = new MongoClient(uri);
-  await client.connect();
-  const db = client.db("yanz");
-  const keys = db.collection("keys");
+    const { owner } = req.body;
+    if (!owner) return res.status(400).json({ error: 'Owner required' });
 
-  const exists = await keys.findOne({ owner });
-  if (exists) {
-    client.close();
-    return res.json({ success: true, apiKey: exists.key, message: "Key already exists" });
+    const key = generateRandomKey(20);
+    await Key.create({ key, owner });
+
+    res.status(200).json({ key });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  const apiKey = "YZN-" + crypto.randomBytes(16).toString("hex").toUpperCase();
-  await keys.insertOne({
-    owner,
-    key: apiKey,
-    active: true,
-    verified: false,
-    used: false,
-    createdAt: new Date(),
-    expireAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365) // 1 ปี
-  });
-
-  client.close();
-  res.json({ success: true, apiKey });
 }
