@@ -8,26 +8,22 @@ export default async function handler(req, res) {
 
   const client = new MongoClient(uri);
   await client.connect();
-  const db = client.db("keydb");
+  const db = client.db("yanz");
   const keys = db.collection("keys");
 
-  const keyData = await keys.findOne({ key });
-  if (!keyData) {
+  const found = await keys.findOne({ key });
+  if (!found) {
     client.close();
-    return res.status(403).json({ error: "Key not generated / not found" });
+    return res.status(403).json({ error: "Key not found / never generated" });
   }
 
-  // เช็คว่าผ่าน API Auth หรือยัง
-  if (!keyData.verified) {
+  if (!found.verified) {
     client.close();
     return res.status(403).json({ error: "Key not verified yet" });
   }
 
-  // Update used = true
-  if (!keyData.used) {
-    await keys.updateOne({ key }, { $set: { used: true } });
-  }
+  await keys.updateOne({ key }, { $set: { used: true } });
 
   client.close();
-  res.json({ success: true, message: "Check-in success", owner: keyData.owner });
+  res.json({ success: true, message: "Check‑in successful" });
 }
