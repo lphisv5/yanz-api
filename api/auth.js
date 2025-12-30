@@ -8,24 +8,23 @@ export default async function handler(req, res) {
 
   const client = new MongoClient(uri);
   await client.connect();
-  const db = client.db("keydb");
+  const db = client.db("yanz");
   const keys = db.collection("keys");
 
-  const keyData = await keys.findOne({ key });
-  if (!keyData) {
+  const found = await keys.findOne({ key });
+  if (!found) {
     client.close();
-    return res.status(403).json({ error: "Key not generated / not found" });
+    return res.status(403).json({ error: "Key not found / never generated" });
   }
-  if (!keyData.active) {
+  if (!found.active) {
     client.close();
     return res.status(403).json({ error: "Key revoked" });
   }
-  if (keyData.expireAt < new Date()) {
+  if (found.expireAt < new Date()) {
     client.close();
     return res.status(403).json({ error: "Key expired" });
   }
 
-  // Update verified = true หลังตรวจสอบสำเร็จ
   await keys.updateOne({ key }, { $set: { verified: true } });
 
   client.close();
