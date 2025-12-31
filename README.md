@@ -5,8 +5,8 @@ Simple API to fetch Roblox mobile versions for Android and iOS. Designed as Verc
 ## Endpoints
 - `GET /api/version?platform=ios`
 - `GET /api/version?platform=android`
-- `GET /api/version/ios` (route alias)
-- `GET /api/version/android` (route alias)
+- `GET /api/version/ios`
+- `GET /api/version/android`
 
 ## Environment Variables
 Set these in Vercel Project Settings -> Environment Variables:
