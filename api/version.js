@@ -6,14 +6,18 @@ async function fetchAndroidVersion() {
   if (!response.ok) throw new Error('Failed to fetch Android page');
   const html = await response.text();
 
-  // เจาะจงหาในส่วน Latest Version of Roblox เท่านั้น
-  const match = html.match(/Latest Version of Roblox[\s\S]*?([\d]+\.[\d]+\.[\d]+)/i);
+  // เจาะจงหา Latest Version of Roblox ก่อน แล้วดึงตัวเลข 3 ส่วน
+  let match = html.match(/Latest Version of Roblox[\s\S]{0,500}?([\d]+\.[\d]+\.[\d]+)/i);
   if (match) return match[1];
 
-  // Fallback ถ้าโครงสร้างเปลี่ยน
-  const fallback = html.match(/2\.[\d]+\.[\d]+/); // Roblox mobile มักขึ้นต้น 2.
-  if (!fallback) throw new Error('Cannot parse Android version');
-  return fallback[0];
+  // Fallback: หา pattern 2.xxx.xxx ที่มี Roblox ใกล้ ๆ
+  match = html.match(/Roblox[\s\S]{0,300}?(2\.[\d]+\.[\d]+)/i);
+  if (match) return match[1];
+
+  // Ultimate fallback: ตัวแรกที่ขึ้นต้น 2.
+  match = html.match(/(2\.[\d]+\.[\d]+)/);
+  if (!match) throw new Error('Cannot parse Android version');
+  return match[1];
 }
 
 async function fetchIosVersion() {
@@ -21,10 +25,16 @@ async function fetchIosVersion() {
   if (!response.ok) throw new Error('Failed to fetch iOS page');
   const html = await response.text();
 
-  // ดึงจาก mostRecentVersion หรือ Version History
-  const match = html.match(/mostRecentVersion[\s\S]*?([\d]+\.[\d]+\.[\d]+)/i) ||
-                html.match(/Version History[\s\S]*?([\d]+\.[\d]+\.[\d]+)/i) ||
-                html.match(/([\d]+\.[\d]+\.[\d]+)/); // fallback ตัวแรก
+  // เจาะจง mostRecentVersion หรือ Version History
+  let match = html.match(/mostRecentVersion[\s\S]{0,500}?([\d]+\.[\d]+\.[\d]+)/i);
+  if (match) return match[1];
+
+  // Fallback: Version ตามด้วยตัวเลข
+  match = html.match(/Version[\s\S]{0,200}?(2\.[\d]+\.[\d]+)/i);
+  if (match) return match[1];
+
+  // Ultimate fallback: ตัวแรกที่ขึ้นต้น 2.
+  match = html.match(/(2\.[\d]+\.[\d]+)/);
   if (!match) throw new Error('Cannot parse iOS version');
   return match[1];
 }
