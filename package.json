@@ -1,11 +1,10 @@
 {
-  "name": "roblox-version-vercel",
+  "name": "roblox-version-api",
   "version": "1.0.0",
-  "description": "Roblox mobile version API for Android and iOS, ready for Vercel",
+  "description": "Roblox mobile version API for Android and iOS",
   "main": "api/version.js",
   "scripts": {
-    "start": "vercel dev",
-    "test": "node -e \"console.log('no tests')\""
+    "start": "vercel dev"
   },
   "dependencies": {
     "axios": "^1.5.0"
