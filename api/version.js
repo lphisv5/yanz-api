@@ -1,5 +1,3 @@
-import { parse } from 'node-html-parser';
-
 const ANDROID_URL = 'https://roblox-game.en.aptoide.com/versions';
 const IOS_URL = 'https://apps.apple.com/us/app/roblox/id431946152';
 
@@ -7,25 +5,27 @@ async function fetchAndroidVersion() {
   const response = await fetch(ANDROID_URL);
   if (!response.ok) throw new Error('Failed to fetch Android page');
   const html = await response.text();
-  const root = parse(html);
 
-  // ดึงจาก Latest Version item แรก
-  const versionText = root.querySelector('div.versions__VersionsItemContainer-sc-1ldjlrq-7')?.innerText || '';
-  const match = versionText.match(/(\d+\.\d+\.\d+)/);
-  if (!match) throw new Error('Cannot parse Android version');
-  return match[1];
+  // Regex หาเวอร์ชันใน Latest Version (เจาะจง pattern ที่มีตัวเลข . )
+  const match = html.match(/Latest Version of Roblox[^>]*>\s*<[^>]*>\s*([\d\.]+)/i);
+  if (match) return match[1];
+
+  // Fallback regex กว้างกว่า
+  const fallback = html.match(/([\d]+\.[\d]+\.[\d]+)/);
+  if (!fallback) throw new Error('Cannot parse Android version');
+  return fallback[1];
 }
 
 async function fetchIosVersion() {
   const response = await fetch(IOS_URL);
   if (!response.ok) throw new Error('Failed to fetch iOS page');
   const html = await response.text();
-  const root = parse(html);
 
-  // ดึงจาก h4 ใน mostRecentVersion
-  const version = root.querySelector('section#mostRecentVersion h4')?.innerText.trim();
-  if (!version || !/^\d+\.\d+/.test(version)) throw new Error('Cannot parse iOS version');
-  return version;
+  // Regex หาใน mostRecentVersion หรือ Version History
+  const match = html.match(/mostRecentVersion[^>]*>\s*<[^>]*>\s*([\d\.]+)/i) ||
+                html.match(/Version\s*([\d\.]+)/i);
+  if (!match) throw new Error('Cannot parse iOS version');
+  return match[1];
 }
 
 export default async function handler(req, res) {
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
       updated: new Date().toISOString()
     });
   } catch (error) {
-    console.error(error); // สำคัญ: log error เพื่อ debug บน Vercel
+    console.error('Fetch error:', error); // log เพื่อดูใน Vercel
     res.status(500).json({ error: 'Failed to fetch version', details: error.message });
   }
 }
