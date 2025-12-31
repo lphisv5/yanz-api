@@ -4,7 +4,6 @@
     { "src": "api/*.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/version", "dest": "/api/version.js" },
-    { "src": "/api/version/(android|ios)", "dest": "/api/version.js" }
+    { "src": "/api/version", "dest": "/api/version.js" }
   ]
 }
