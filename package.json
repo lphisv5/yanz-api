@@ -1,14 +1,13 @@
 {
-  "name": "yanz-api",
+  "name": "roblox-version-vercel",
   "version": "1.0.0",
-  "main": "index.js",
-  "engines": {
-    "node": ">=18"
-  },
+  "description": "Roblox mobile version API for Android and iOS, ready for Vercel",
+  "main": "api/version.js",
   "scripts": {
-    "start": "vercel dev"
+    "start": "vercel dev",
+    "test": "node -e \"console.log('no tests')\""
   },
   "dependencies": {
-    "mongoose": "^7.5.1"
+    "axios": "^1.5.0"
   }
 }
