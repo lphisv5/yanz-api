@@ -1,12 +1,10 @@
-# Roblox Version API for Vercel
+# Roblox Version API
 
 Simple API to fetch Roblox mobile versions for Android and iOS. Designed as Vercel Serverless Function.
 
 ## Endpoints
 - `GET /api/version?platform=ios`
 - `GET /api/version?platform=android`
-- `GET /api/version/ios`
-- `GET /api/version/android`
 
 ## Environment Variables
 Set these in Vercel Project Settings -> Environment Variables:
