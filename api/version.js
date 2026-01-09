@@ -6,22 +6,29 @@ async function fetchAndroidVersion() {
   if (!response.ok) throw new Error('Failed to fetch Google Play page');
   const html = await response.text();
 
-  // วิธีที่ 1: หาจาก meta tag ที่มีเวอร์ชัน
-  let match = html.match(/"([\d]+\.[\d]+\.[\d]+)"/);
+  // วิธีที่ 1: หาจากข้อมูลเวอร์ชันล่าสุดสำหรับอุปกรณ์ปัจจุบัน (2.703.1353)
+  // ข้อมูลนี้อยู่ในส่วน "Vivo V2342" หรืออุปกรณ์อื่นๆ
+  let match = html.match(/<div class="v0MAtc">[^<]+<\/div>[\s\S]*?<div class="q078ud">เวอร์ชัน<\/div>[\s\S]*?<div class="reAt0">([\d]+\.[\d]+\.[\d]+)<\/div>/i);
   if (match) {
-    // ลองหา pattern ที่น่าจะเป็นเวอร์ชันของ Roblox
-    const versionPattern = /2\.\d+\.\d+/;
-    const foundVersions = html.match(new RegExp(versionPattern, 'g'));
-    if (foundVersions && foundVersions.length > 0) {
-      return foundVersions[0]; // คืนค่าเวอร์ชันแรกที่เจอ
-    }
+    console.log('Found device-specific version:', match[1]);
+    return match[1]; // คืนค่า 2.703.1353
   }
 
-  // วิธีที่ 2: หาจาก Current Version
-  match = html.match(/Current Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
-  if (match) return match[1];
+  // วิธีที่ 2: หาจากเวอร์ชันทั่วไป (2.702.632)
+  match = html.match(/<div class="q078ud">เวอร์ชัน<\/div>[\s\S]*?<div class="reAt0">([\d]+\.[\d]+\.[\d]+)<\/div>/i);
+  if (match) {
+    console.log('Found general version:', match[1]);
+    return match[1]; // คืนค่า 2.702.632
+  }
 
-  // วิธีที่ 3: หาจาก pattern ที่มีเวอร์ชันทั่วไป
+  // วิธีที่ 3: หาจาก pattern เฉพาะสำหรับเวอร์ชัน Roblox
+  match = html.match(/2\.\d{3}\.\d{3,4}/);
+  if (match) {
+    console.log('Found Roblox pattern version:', match[0]);
+    return match[0];
+  }
+
+  // วิธีที่ 4: Fallback ทั่วไป
   match = html.match(/(2\.[\d]+\.[\d]+)/);
   if (!match) throw new Error('Cannot parse Android version from Google Play');
   return match[1];
@@ -32,15 +39,29 @@ async function fetchIosVersion() {
   if (!response.ok) throw new Error('Failed to fetch iOS page');
   const html = await response.text();
 
-  // เจาะจง mostRecentVersion หรือ Version History
-  let match = html.match(/mostRecentVersion[\s\S]{0,500}?([\d]+\.[\d]+\.[\d]+)/i);
+  // วิธีที่ 1: หาจาก script JSON-LD ใน App Store
+  const scriptMatch = html.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/i);
+  if (scriptMatch) {
+    try {
+      const jsonData = JSON.parse(scriptMatch[1]);
+      if (jsonData.version) {
+        const versionMatch = jsonData.version.match(/([\d]+\.[\d]+\.[\d]+)/);
+        if (versionMatch) return versionMatch[1];
+      }
+      if (jsonData.softwareVersion) {
+        const versionMatch = jsonData.softwareVersion.match(/([\d]+\.[\d]+\.[\d]+)/);
+        if (versionMatch) return versionMatch[1];
+      }
+    } catch (e) {
+      // Ignore JSON parse error
+    }
+  }
+
+  // วิธีที่ 2: หาจาก what's new section
+  let match = html.match(/Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
   if (match) return match[1];
 
-  // Fallback: Version ตามด้วยตัวเลข
-  match = html.match(/Version[\s\S]{0,200}?(2\.[\d]+\.[\d]+)/i);
-  if (match) return match[1];
-
-  // Ultimate fallback: ตัวแรกที่ขึ้นต้น 2.
+  // วิธีที่ 3: Fallback
   match = html.match(/(2\.[\d]+\.[\d]+)/);
   if (!match) throw new Error('Cannot parse iOS version');
   return match[1];
