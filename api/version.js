@@ -1,22 +1,29 @@
-const ANDROID_URL = 'https://apkpure.com/th/roblox-android-2025/com.roblox.client';
+const ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.roblox.client';
 const IOS_URL = 'https://apps.apple.com/us/app/roblox/id431946152';
 
 async function fetchAndroidVersion() {
   const response = await fetch(ANDROID_URL);
-  if (!response.ok) throw new Error('Failed to fetch Android page');
+  if (!response.ok) throw new Error('Failed to fetch Google Play page');
   const html = await response.text();
 
-  // วิธีที่ 1: หาจาก class="version one-line" โดยตรง
-  let match = html.match(/<span class="version one-line">([\d]+\.[\d]+\.[\d]+)<\/span>/i);
+  // วิธีที่ 1: หาจาก meta tag ที่มีเวอร์ชัน
+  let match = html.match(/"([\d]+\.[\d]+\.[\d]+)"/);
+  if (match) {
+    // ลองหา pattern ที่น่าจะเป็นเวอร์ชันของ Roblox
+    const versionPattern = /2\.\d+\.\d+/;
+    const foundVersions = html.match(new RegExp(versionPattern, 'g'));
+    if (foundVersions && foundVersions.length > 0) {
+      return foundVersions[0]; // คืนค่าเวอร์ชันแรกที่เจอ
+    }
+  }
+
+  // วิธีที่ 2: หาจาก Current Version
+  match = html.match(/Current Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
   if (match) return match[1];
 
-  // วิธีที่ 2: Fallback - หา pattern ที่มี class version
-  match = html.match(/class="[^"]*version[^"]*"[\s\S]{0,100}?>([\d]+\.[\d]+\.[\d]+)</i);
-  if (match) return match[1];
-
-  // วิธีที่ 3: Fallback - หา pattern ทั่วไป
+  // วิธีที่ 3: หาจาก pattern ที่มีเวอร์ชันทั่วไป
   match = html.match(/(2\.[\d]+\.[\d]+)/);
-  if (!match) throw new Error('Cannot parse Android version');
+  if (!match) throw new Error('Cannot parse Android version from Google Play');
   return match[1];
 }
 
