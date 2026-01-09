@@ -1,74 +1,61 @@
-const ANDROID_URL = 'https://apkpure.com/th/roblox-android-2025/com.roblox.client';
+const ANDROID_URL = 'https://www.apkmirror.com/apk/roblox-corporation/roblox/';
 const IOS_URL = 'https://apps.apple.com/us/app/roblox/id431946152';
 
 async function fetchAndroidVersion() {
   try {
-    const response = await fetch(ANDROID_URL, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error('APKPure response status:', response.status, response.statusText);
-      throw new Error(`Failed to fetch APKPure page: ${response.status} ${response.statusText}`);
-    }
+    // ใช้ APKMirror แทน (มักอนุญาตให้ดึงข้อมูลได้)
+    const response = await fetch(ANDROID_URL);
+    if (!response.ok) throw new Error(`Failed to fetch APKMirror page: ${response.status}`);
     
     const html = await response.text();
     
-    // ตรวจสอบว่าได้ HTML ที่ถูกต้องหรือไม่
-    if (!html || html.length < 100) {
-      throw new Error('Received empty or invalid HTML from APKPure');
+    // ลองหาเวอร์ชันในหลายรูปแบบ
+    const patterns = [
+      /<span class="infoSlide-value">([\d]+\.[\d]+\.[\d]+)<\/span>/,
+      /<p class="infoSlide-value">([\d]+\.[\d]+\.[\d]+)<\/p>/,
+      /Latest Version:[\s\S]*?([\d]+\.[\d]+\.[\d]+)/i,
+      /<h2 class="latestApk__title">[\s\S]*?([\d]+\.[\d]+\.[\d]+)[\s\S]*?<\/h2>/,
+      /(2\.\d{3}\.\d{3,4})/  // Pattern เฉพาะ Roblox
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) {
+        console.log('Found version with pattern:', match[1]);
+        return match[1];
+      }
     }
 
-    // วิธีที่ 1: หาจาก class="version one-line" โดยตรง
-    let match = html.match(/<span class="version one-line">([\d]+\.[\d]+\.[\d]+)<\/span>/);
-    if (match) {
-      console.log('Found version from version one-line class:', match[1]);
-      return match[1];
-    }
-
-    // วิธีที่ 2: Fallback
-    match = html.match(/<div class="info-content one-line"[\s\S]*?<span class="version one-line">([\d]+\.[\d]+\.[\d]+)<\/span>/);
-    if (match) return match[1];
-
-    // วิธีที่ 3: Fallback
-    match = html.match(/<h1>Roblox<\/h1>[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
-    if (match) return match[1];
-
-    // วิธีที่ 4: Ultimate fallback
-    match = html.match(/(2\.[\d]+\.[\d]+)/);
-    if (!match) {
-      // บันทึก HTML ส่วนต้นเพื่อ debug
-      console.error('HTML sample (first 2000 chars):', html.substring(0, 2000));
-      throw new Error('Cannot parse Android version from APKPure');
-    }
-    
-    return match[1];
+    throw new Error('Cannot parse version from APKMirror');
     
   } catch (error) {
-    console.error('Error in fetchAndroidVersion:', error.message);
-    throw error;
+    console.error('APKMirror fetch error:', error);
+    // Fallback ไปหาแหล่งข้อมูลอื่น
+    return await fetchAndroidVersionFallback();
   }
 }
 
-async function fetchIosVersion() {
-  const response = await fetch(IOS_URL, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
-    }
-  });
+async function fetchAndroidVersionFallback() {
+  // ทางเลือกเสริม: ใช้ uptodown
+  const fallbackUrl = 'https://roblox.en.uptodown.com/android';
+  try {
+    const response = await fetch(fallbackUrl);
+    if (!response.ok) throw new Error('Failed to fetch fallback');
+    
+    const html = await response.text();
+    const match = html.match(/version__number">([\d]+\.[\d]+\.[\d]+)</i) ||
+                  html.match(/<dt>Version<\/dt>[\s\S]*?<dd>([\d]+\.[\d]+\.[\d]+)<\/dd>/i);
+    
+    if (match) return match[1];
+  } catch (e) {
+    console.error('Fallback also failed:', e.message);
+  }
   
+  throw new Error('All Android version sources failed');
+}
+
+async function fetchIosVersion() {
+  const response = await fetch(IOS_URL);
   if (!response.ok) throw new Error(`Failed to fetch iOS page: ${response.status}`);
   const html = await response.text();
 
@@ -85,8 +72,7 @@ async function fetchIosVersion() {
   }
 
   // Fallback
-  const match = html.match(/Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i) || 
-                html.match(/(2\.[\d]+\.[\d]+)/);
+  const match = html.match(/Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
   if (match) return match[1];
   
   throw new Error('Cannot parse iOS version');
