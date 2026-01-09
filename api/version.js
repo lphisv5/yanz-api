@@ -1,81 +1,76 @@
-const ANDROID_URL = 'https://www.apkmirror.com/apk/roblox-corporation/roblox/';
+const ANDROID_URL = 'https://roblox.en.uptodown.com/android';
 const IOS_URL = 'https://apps.apple.com/us/app/roblox/id431946152';
 
 async function fetchAndroidVersion() {
   try {
-    // ใช้ APKMirror แทน (มักอนุญาตให้ดึงข้อมูลได้)
     const response = await fetch(ANDROID_URL);
-    if (!response.ok) throw new Error(`Failed to fetch APKMirror page: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Uptodown page: ${response.status} ${response.statusText}`);
+    }
     
     const html = await response.text();
     
-    // ลองหาเวอร์ชันในหลายรูปแบบ
-    const patterns = [
-      /<span class="infoSlide-value">([\d]+\.[\d]+\.[\d]+)<\/span>/,
-      /<p class="infoSlide-value">([\d]+\.[\d]+\.[\d]+)<\/p>/,
-      /Latest Version:[\s\S]*?([\d]+\.[\d]+\.[\d]+)/i,
-      /<h2 class="latestApk__title">[\s\S]*?([\d]+\.[\d]+\.[\d]+)[\s\S]*?<\/h2>/,
-      /(2\.\d{3}\.\d{3,4})/  // Pattern เฉพาะ Roblox
-    ];
-
-    for (const pattern of patterns) {
-      const match = html.match(pattern);
-      if (match && match[1]) {
-        console.log('Found version with pattern:', match[1]);
-        return match[1];
-      }
+    let match = html.match(/<div class="version">([\d]+\.[\d]+\.[\d]+)<\/div>/);
+    if (match) {
+      console.log('Found version from Uptodown:', match[1]);
+      return match[1];
     }
 
-    throw new Error('Cannot parse version from APKMirror');
+    match = html.match(/<div class="info"[\s\S]*?<div class="version">([\d]+\.[\d]+\.[\d]+)<\/div>/);
+    if (match) return match[1];
+
+    match = html.match(/detail-app-name[\s\S]{0,200}?<div class="version">([\d]+\.[\d]+\.[\d]+)<\/div>/);
+    if (match) return match[1];
+
+    match = html.match(/(2\.\d{3}\.\d{3,4})/);
+    if (!match) throw new Error('Cannot parse version from Uptodown');
+    
+    return match[1];
     
   } catch (error) {
-    console.error('APKMirror fetch error:', error);
-    // Fallback ไปหาแหล่งข้อมูลอื่น
-    return await fetchAndroidVersionFallback();
+    console.error('Uptodown fetch error:', error.message);
+    throw error;
   }
-}
-
-async function fetchAndroidVersionFallback() {
-  // ทางเลือกเสริม: ใช้ uptodown
-  const fallbackUrl = 'https://roblox.en.uptodown.com/android';
-  try {
-    const response = await fetch(fallbackUrl);
-    if (!response.ok) throw new Error('Failed to fetch fallback');
-    
-    const html = await response.text();
-    const match = html.match(/version__number">([\d]+\.[\d]+\.[\d]+)</i) ||
-                  html.match(/<dt>Version<\/dt>[\s\S]*?<dd>([\d]+\.[\d]+\.[\d]+)<\/dd>/i);
-    
-    if (match) return match[1];
-  } catch (e) {
-    console.error('Fallback also failed:', e.message);
-  }
-  
-  throw new Error('All Android version sources failed');
 }
 
 async function fetchIosVersion() {
-  const response = await fetch(IOS_URL);
-  if (!response.ok) throw new Error(`Failed to fetch iOS page: ${response.status}`);
-  const html = await response.text();
+  try {
+    const response = await fetch(IOS_URL);
+    if (!response.ok) throw new Error(`Failed to fetch iOS page: ${response.status}`);
+    const html = await response.text();
 
-  // หาจาก script JSON-LD
-  const scriptMatch = html.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/i);
-  if (scriptMatch) {
-    try {
-      const jsonData = JSON.parse(scriptMatch[1]);
-      if (jsonData.version) {
-        const versionMatch = jsonData.version.match(/([\d]+\.[\d]+\.[\d]+)/);
-        if (versionMatch) return versionMatch[1];
+    const scriptMatch = html.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/i);
+    if (scriptMatch) {
+      try {
+        const jsonData = JSON.parse(scriptMatch[1]);
+        if (jsonData.version) {
+          const versionMatch = jsonData.version.match(/([\d]+\.[\d]+\.[\d]+)/);
+          if (versionMatch) {
+            console.log('iOS version from JSON-LD:', versionMatch[1]);
+            return versionMatch[1];
+          }
+        }
+      } catch (e) {
+        console.log('JSON parse error:', e.message);
       }
-    } catch (e) {}
-  }
+    }
 
-  // Fallback
-  const match = html.match(/Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
-  if (match) return match[1];
-  
-  throw new Error('Cannot parse iOS version');
+    let match = html.match(/Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
+    if (match) {
+      console.log('iOS version from Version text:', match[1]);
+      return match[1];
+    }
+
+    match = html.match(/(2\.[\d]+\.[\d]+)/);
+    if (!match) throw new Error('Cannot parse iOS version');
+    
+    console.log('iOS fallback version:', match[1]);
+    return match[1];
+    
+  } catch (error) {
+    console.error('iOS fetch error:', error.message);
+    throw error;
+  }
 }
 
 export default async function handler(req, res) {
@@ -95,7 +90,8 @@ export default async function handler(req, res) {
     res.status(200).json({
       version,
       platform,
-      updated: new Date().toISOString()
+      updated: new Date().toISOString(),
+      source: platform === 'android' ? 'Uptodown' : 'App Store'
     });
   } catch (error) {
     console.error('API handler error:', error);
