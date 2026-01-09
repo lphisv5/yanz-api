@@ -5,30 +5,25 @@ async function fetchAndroidVersion() {
   try {
     const response = await fetch(ANDROID_URL);
     if (!response.ok) {
-      throw new Error(`Failed to fetch Uptodown page: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch Android page: ${response.status}`);
     }
     
     const html = await response.text();
     
-    let match = html.match(/<div class="version">([\d]+\.[\d]+\.[\d]+)<\/div>/);
+    // หาเวอร์ชันจาก class="version"
+    const match = html.match(/<div class="version">([\d]+\.[\d]+\.[\d]+)<\/div>/);
     if (match) {
-      console.log('Found version from Uptodown:', match[1]);
       return match[1];
     }
 
-    match = html.match(/<div class="info"[\s\S]*?<div class="version">([\d]+\.[\d]+\.[\d]+)<\/div>/);
-    if (match) return match[1];
-
-    match = html.match(/detail-app-name[\s\S]{0,200}?<div class="version">([\d]+\.[\d]+\.[\d]+)<\/div>/);
-    if (match) return match[1];
-
-    match = html.match(/(2\.\d{3}\.\d{3,4})/);
-    if (!match) throw new Error('Cannot parse version from Uptodown');
+    // Fallback pattern
+    const fallbackMatch = html.match(/(2\.\d{3}\.\d{3,4})/);
+    if (!fallbackMatch) throw new Error('Cannot parse Android version');
     
-    return match[1];
+    return fallbackMatch[1];
     
   } catch (error) {
-    console.error('Uptodown fetch error:', error.message);
+    console.error('Android fetch error:', error.message);
     throw error;
   }
 }
@@ -39,33 +34,27 @@ async function fetchIosVersion() {
     if (!response.ok) throw new Error(`Failed to fetch iOS page: ${response.status}`);
     const html = await response.text();
 
+    // หาจาก script JSON-LD
     const scriptMatch = html.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/i);
     if (scriptMatch) {
       try {
         const jsonData = JSON.parse(scriptMatch[1]);
         if (jsonData.version) {
           const versionMatch = jsonData.version.match(/([\d]+\.[\d]+\.[\d]+)/);
-          if (versionMatch) {
-            console.log('iOS version from JSON-LD:', versionMatch[1]);
-            return versionMatch[1];
-          }
+          if (versionMatch) return versionMatch[1];
         }
-      } catch (e) {
-        console.log('JSON parse error:', e.message);
-      }
+      } catch (e) {}
     }
 
-    let match = html.match(/Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
-    if (match) {
-      console.log('iOS version from Version text:', match[1]);
-      return match[1];
-    }
-
-    match = html.match(/(2\.[\d]+\.[\d]+)/);
-    if (!match) throw new Error('Cannot parse iOS version');
+    // Fallback
+    const match = html.match(/Version[\s\S]{0,200}?([\d]+\.[\d]+\.[\d]+)/i);
+    if (match) return match[1];
     
-    console.log('iOS fallback version:', match[1]);
-    return match[1];
+    // Ultimate fallback
+    const fallbackMatch = html.match(/(2\.[\d]+\.[\d]+)/);
+    if (!fallbackMatch) throw new Error('Cannot parse iOS version');
+    
+    return fallbackMatch[1];
     
   } catch (error) {
     console.error('iOS fetch error:', error.message);
@@ -90,15 +79,13 @@ export default async function handler(req, res) {
     res.status(200).json({
       version,
       platform,
-      updated: new Date().toISOString(),
-      source: platform === 'android' ? 'Uptodown' : 'App Store'
+      updated: new Date().toISOString()
     });
   } catch (error) {
     console.error('API handler error:', error);
     res.status(500).json({ 
       error: 'Failed to fetch version', 
-      details: error.message,
-      platform: platform 
+      details: error.message
     });
   }
 }
