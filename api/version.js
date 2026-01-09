@@ -2,11 +2,15 @@ const ANDROID_URL = 'https://apkpure.com/th/roblox-android-2025/com.roblox.clien
 const IOS_URL = 'https://apps.apple.com/us/app/roblox/id431946152';
 
 async function fetchAndroidVersion() {
-  const response = await fetch(ANDROID_URL);
+  const response = await fetch(ANDROID_URL, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+    }
+  });
   if (!response.ok) throw new Error('Failed to fetch Android page');
   const html = await response.text();
 
-  // เจาะตรง <span class="version one-line">x.x.x</span>
+  // ดึงเวอร์ชันจาก <span class="version one-line">2.xxx.xxx</span>
   let match = html.match(/<span class="version one-line">([\d]+\.[\d]+\.[\d]+)<\/span>/i);
   if (match) return `v${match[1]}`;
 
@@ -17,7 +21,11 @@ async function fetchAndroidVersion() {
 }
 
 async function fetchIosVersion() {
-  const response = await fetch(IOS_URL);
+  const response = await fetch(IOS_URL, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1'
+    }
+  });
   if (!response.ok) throw new Error('Failed to fetch iOS page');
   const html = await response.text();
 
@@ -56,12 +64,4 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch version', details: error.message });
-  }
-}
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+    res.status(500).json
