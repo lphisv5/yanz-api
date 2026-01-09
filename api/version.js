@@ -2,45 +2,41 @@ const ANDROID_URL = 'https://apkpure.com/th/roblox-android-2025/com.roblox.clien
 const IOS_URL = 'https://apps.apple.com/us/app/roblox/id431946152';
 
 async function fetchAndroidVersion() {
-  const response = await fetch(ANDROID_URL, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
-    }
-  });
+  const response = await fetch(ANDROID_URL);
   if (!response.ok) throw new Error('Failed to fetch Android page');
   const html = await response.text();
 
-  // ดึงเวอร์ชันจาก <span class="version one-line">2.xxx.xxx</span>
+  // วิธีที่ 1: หาจาก class="version one-line" โดยตรง
   let match = html.match(/<span class="version one-line">([\d]+\.[\d]+\.[\d]+)<\/span>/i);
-  if (match) return `v${match[1]}`;
+  if (match) return match[1];
 
-  // Fallback: หา pattern 2.xxx.xxx
+  // วิธีที่ 2: Fallback - หา pattern ที่มี class version
+  match = html.match(/class="[^"]*version[^"]*"[\s\S]{0,100}?>([\d]+\.[\d]+\.[\d]+)</i);
+  if (match) return match[1];
+
+  // วิธีที่ 3: Fallback - หา pattern ทั่วไป
   match = html.match(/(2\.[\d]+\.[\d]+)/);
   if (!match) throw new Error('Cannot parse Android version');
-  return `v${match[1]}`;
+  return match[1];
 }
 
 async function fetchIosVersion() {
-  const response = await fetch(IOS_URL, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1'
-    }
-  });
+  const response = await fetch(IOS_URL);
   if (!response.ok) throw new Error('Failed to fetch iOS page');
   const html = await response.text();
 
   // เจาะจง mostRecentVersion หรือ Version History
   let match = html.match(/mostRecentVersion[\s\S]{0,500}?([\d]+\.[\d]+\.[\d]+)/i);
-  if (match) return `v${match[1]}`;
+  if (match) return match[1];
 
   // Fallback: Version ตามด้วยตัวเลข
   match = html.match(/Version[\s\S]{0,200}?(2\.[\d]+\.[\d]+)/i);
-  if (match) return `v${match[1]}`;
+  if (match) return match[1];
 
   // Ultimate fallback: ตัวแรกที่ขึ้นต้น 2.
   match = html.match(/(2\.[\d]+\.[\d]+)/);
   if (!match) throw new Error('Cannot parse iOS version');
-  return `v${match[1]}`;
+  return match[1];
 }
 
 export default async function handler(req, res) {
@@ -64,4 +60,12 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Fetch error:', error);
-    res.status(500).json
+    res.status(500).json({ error: 'Failed to fetch version', details: error.message });
+  }
+}
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
