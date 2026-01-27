@@ -17,14 +17,12 @@ async function fetchIosVersion() {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const html = await response.text();
   
-  // วิธีที่ 1: หาจาก JSON-LD script (แม่นยำที่สุด)
   const scriptRegex = /<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi;
   let match;
   
   while ((match = scriptRegex.exec(html)) !== null) {
     try {
       const jsonData = JSON.parse(match[1]);
-      // ตรวจสอบว่าเป็นข้อมูลของแอป Roblox
       if (jsonData && jsonData.name && jsonData.name.toLowerCase().includes('roblox')) {
         if (jsonData.version) {
           const versionMatch = jsonData.version.match(/([\d]+\.[\d]+\.[\d]+)/);
@@ -42,12 +40,9 @@ async function fetchIosVersion() {
         }
       }
     } catch (e) {
-      // Continue to next script
     }
   }
   
-  // วิธีที่ 2: หาจาก pattern เฉพาะสำหรับ Roblox iOS
-  // App Store มักแสดงเวอร์ชันในรูปแบบ: "Version 2.703.1353"
   const versionPattern = /Version[\s\S]{0,300}?(2\.\d{3}\.\d{3,4})/i;
   const versionMatch = html.match(versionPattern);
   if (versionMatch) {
@@ -55,7 +50,6 @@ async function fetchIosVersion() {
     return versionMatch[1];
   }
   
-  // วิธีที่ 3: หาจาก what's new section
   const whatsNewPattern = /"whatsNew"[\s\S]{0,500}?"version"[\s\S]{0,100}?"string"[\s\S]{0,100}?"([\d]+\.[\d]+\.[\d]+)"/i;
   const whatsNewMatch = html.match(whatsNewPattern);
   if (whatsNewMatch) {
@@ -63,7 +57,6 @@ async function fetchIosVersion() {
     return whatsNewMatch[1];
   }
   
-  // วิธีที่ 4: หาจาก App Store ใหม่ pattern
   const appStorePattern = /"versionDisplay"[\s\S]{0,100}?"([\d]+\.[\d]+\.[\d]+)"/i;
   const appStoreMatch = html.match(appStorePattern);
   if (appStoreMatch) {
@@ -71,7 +64,6 @@ async function fetchIosVersion() {
     return appStoreMatch[1];
   }
   
-  // วิธีที่ 5: Fallback - หา pattern เฉพาะ Roblox 2.xxx.xxx
   const robloxPattern = /(2\.\d{3}\.\d{3,4})/;
   const robloxMatch = html.match(robloxPattern);
   if (robloxMatch) {
@@ -98,7 +90,6 @@ export default async function handler(req, res) {
     res.json({
       version,
       platform,
-      updated: new Date().toISOString()
     });
   } catch (error) {
     console.error('Error fetching version:', error);
