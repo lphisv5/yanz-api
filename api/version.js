@@ -81,7 +81,6 @@ async function fetchWindowsVersion() {
   
   const data = await response.json();
   
-  // Validate response structure
   if (!data || typeof data !== 'object') {
     throw new Error('Invalid response format from Windows API');
   }
@@ -90,7 +89,6 @@ async function fetchWindowsVersion() {
     throw new Error('Version field missing or invalid in Windows API response');
   }
   
-  // Extract both version and clientVersionUpload
   const result = {
     version: data.version,
     clientVersionUpload: data.clientVersionUpload || null
@@ -115,23 +113,19 @@ export default async function handler(req, res) {
     if (platform === 'android') {
       const version = await fetchAndroidVersion();
       responseData = {
-        version,
-        platform
+        version
       };
     } else if (platform === 'ios') {
       const version = await fetchIosVersion();
       responseData = {
-        version,
-        platform
+        version
       };
     } else if (platform === 'windows') {
       const windowsData = await fetchWindowsVersion();
       responseData = {
-        version: windowsData.version,
-        platform: 'windows'
+        version: windowsData.version
       };
       
-      // Add clientVersionUpload if available
       if (windowsData.clientVersionUpload) {
         responseData.clientVersionUpload = windowsData.clientVersionUpload;
       }
