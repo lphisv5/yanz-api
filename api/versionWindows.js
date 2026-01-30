@@ -1,75 +1,60 @@
-const WINDOWS_URL = 'https://www.microsoft.com/store/productId/9NBLGGGZM6WM';
+const WINDOWS_VERSION_URL = 'https://setup.rbxcdn.com/version';
+const DEPLOY_HISTORY_URL = 'https://setup.rbxcdn.com/DeployHistory.txt';
 
 async function fetchWindowsVersion() {
-  const response = await fetch(WINDOWS_URL, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
-  });
-  
+  const response = await fetch(WINDOWS_VERSION_URL);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const html = await response.text();
+  const versionText = await response.text();
   
-  // Try to find version in JSON-LD structured data
-  const scriptRegex = /<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi;
-  let match;
+  // Remove any whitespace and validate format
+  const version = versionText.trim();
+  if (!version.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+    throw new Error('Invalid version format');
+  }
   
-  while ((match = scriptRegex.exec(html)) !== null) {
-    try {
-      const jsonData = JSON.parse(match[1]);
-      if (jsonData && jsonData['@type'] === 'SoftwareApplication') {
-        if (jsonData.softwareVersion) {
-          const versionMatch = jsonData.softwareVersion.match(/([\d]+\.[\d]+\.[\d]+\.[\d]+)/);
-          if (versionMatch) {
-            console.log('Found Windows version from JSON-LD softwareVersion:', versionMatch[1]);
-            return versionMatch[1];
-          }
-        }
+  return version;
+}
+
+async function fetchClientVersionUpload() {
+  try {
+    const response = await fetch(DEPLOY_HISTORY_URL);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const text = await response.text();
+    
+    // Get the first line which contains the latest version
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length > 0) {
+      const latestLine = lines[0].trim();
+      // Format: "New 0.xxx.x.xxxxxxx at 2024... Done version-xxxxx"
+      const versionMatch = latestLine.match(/version-([a-f0-9]+)/);
+      if (versionMatch) {
+        return `version-${versionMatch[1]}`;
       }
-    } catch (e) {
-      // Silent catch for parsing errors
     }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching clientVersionUpload:', error);
+    return null;
   }
-  
-  // Try to find version in meta tags
-  const metaVersionPattern = /<meta[^>]*property="og:version"[^>]*content="([^"]*)"[^>]*>/i;
-  const metaMatch = html.match(metaVersionPattern);
-  if (metaMatch) {
-    const versionMatch = metaMatch[1].match(/([\d]+\.[\d]+\.[\d]+\.[\d]+)/);
-    if (versionMatch) {
-      console.log('Found Windows version from meta tag:', versionMatch[1]);
-      return versionMatch[1];
-    }
-  }
-  
-  // Try to find version in the page content
-  const versionPattern = /Version[\s\S]{0,300}?([\d]+\.[\d]+\.[\d]+\.[\d]+)/i;
-  const versionMatch = html.match(versionPattern);
-  if (versionMatch) {
-    console.log('Found Windows version from Version text:', versionMatch[1]);
-    return versionMatch[1];
-  }
-  
-  // Look for any 4-part version number pattern (x.x.x.x)
-  const genericVersionPattern = /([\d]+\.[\d]+\.[\d]+\.[\d]+)/;
-  const genericMatch = html.match(genericVersionPattern);
-  if (genericMatch) {
-    console.log('Found Windows version from generic pattern:', genericMatch[1]);
-    return genericMatch[1];
-  }
-  
-  throw new Error('Windows version not found');
 }
 
 export default async function handler(req, res) {
   try {
     const version = await fetchWindowsVersion();
+    const clientVersionUpload = await fetchClientVersionUpload();
     
-    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
-    res.json({
+    const responseData = {
       version,
       platform: 'windows',
-    });
+    };
+    
+    if (clientVersionUpload) {
+      responseData.clientVersionUpload = clientVersionUpload;
+    }
+    
+    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
+    res.json(responseData);
   } catch (error) {
     console.error('Error fetching Windows version:', error);
     res.status(500).json({ 
@@ -84,4 +69,3 @@ export const config = {
     bodyParser: false,
   },
 };
-
