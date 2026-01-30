@@ -1,7 +1,6 @@
 const ANDROID_URL = 'https://roblox.en.uptodown.com/android';
 const IOS_URL = 'https://apps.apple.com/us/app/roblox/id431946152';
-const WINDOWS_VERSION_URL = 'https://setup.rbxcdn.com/version';
-const DEPLOY_HISTORY_URL = 'https://setup.rbxcdn.com/DeployHistory.txt';
+const WINDOWS_API_URL = 'https://clientsettings.roblox.com/v1/client-version/WindowsPlayer';
 
 async function fetchAndroidVersion() {
   const response = await fetch(ANDROID_URL);
@@ -77,41 +76,28 @@ async function fetchIosVersion() {
 }
 
 async function fetchWindowsVersion() {
-  const response = await fetch(WINDOWS_VERSION_URL);
+  const response = await fetch(WINDOWS_API_URL);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const versionText = await response.text();
   
-  // Remove any whitespace and validate format
-  const version = versionText.trim();
-  if (!version.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-    throw new Error('Invalid version format');
+  const data = await response.json();
+  
+  // Validate response structure
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid response format from Windows API');
   }
   
-  return version;
-}
-
-async function fetchClientVersionUpload() {
-  try {
-    const response = await fetch(DEPLOY_HISTORY_URL);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const text = await response.text();
-    
-    // Get the first line which contains the latest version
-    const lines = text.split('\n').filter(line => line.trim());
-    if (lines.length > 0) {
-      const latestLine = lines[0].trim();
-      // Format: "New 0.xxx.x.xxxxxxx at 2024... Done version-xxxxx"
-      const versionMatch = latestLine.match(/version-([a-f0-9]+)/);
-      if (versionMatch) {
-        return `version-${versionMatch[1]}`;
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error fetching clientVersionUpload:', error);
-    return null;
+  if (!data.version || typeof data.version !== 'string') {
+    throw new Error('Version field missing or invalid in Windows API response');
   }
+  
+  // Extract both version and clientVersionUpload
+  const result = {
+    version: data.version,
+    clientVersionUpload: data.clientVersionUpload || null
+  };
+  
+  console.log('Windows API response:', result);
+  return result;
 }
 
 export default async function handler(req, res) {
@@ -124,27 +110,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    let version;
-    let additionalData = {};
+    let responseData;
     
     if (platform === 'android') {
-      version = await fetchAndroidVersion();
+      const version = await fetchAndroidVersion();
+      responseData = {
+        version,
+        platform
+      };
     } else if (platform === 'ios') {
-      version = await fetchIosVersion();
+      const version = await fetchIosVersion();
+      responseData = {
+        version,
+        platform
+      };
     } else if (platform === 'windows') {
-      version = await fetchWindowsVersion();
-      const clientVersionUpload = await fetchClientVersionUpload();
-      if (clientVersionUpload) {
-        additionalData.clientVersionUpload = clientVersionUpload;
+      const windowsData = await fetchWindowsVersion();
+      responseData = {
+        version: windowsData.version,
+        platform: 'windows'
+      };
+      
+      // Add clientVersionUpload if available
+      if (windowsData.clientVersionUpload) {
+        responseData.clientVersionUpload = windowsData.clientVersionUpload;
       }
     }
     
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
-    res.json({
-      version,
-      platform,
-      ...additionalData
-    });
+    res.json(responseData);
   } catch (error) {
     console.error(`Error fetching ${platform} version:`, error);
     res.status(500).json({ 
